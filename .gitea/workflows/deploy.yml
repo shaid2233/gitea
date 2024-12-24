@@ -1,0 +1,31 @@
+name: Deploy to Kubernetes
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Lint YAML files
+        run: |
+          for file in $(find . -name "*.yaml" -o -name "*.yml"); do
+            echo "Linting $file..."
+            yamllint "$file" || exit 1
+          done
+
+      - name: Apply Kubernetes manifests
+        run: |
+          for file in $(find . -name "*.yaml" -o -name "*.yml"); do
+            echo "Applying $file..."
+            kubectl apply -f "$file"
+          done
