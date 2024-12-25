@@ -1,0 +1,14 @@
+# Ignore Gitea runner config if sensitive
+config-map-gitea-runner.yaml
+gitea-pv.yaml
+gitea-pvc.yaml
+gitea.yaml
+mysql-pv.yaml
+mysql-pvc.yaml
+mysql.yaml
+secretmysql.yaml
+ingres.yaml
+gitea-runner.yaml
+
+# Ignore scripts if not needed in the repo
+script.sh
