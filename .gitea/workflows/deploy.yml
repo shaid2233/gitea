@@ -1,4 +1,5 @@
-name: Deploy to Kubernetes
+name: CI Pipeline
+
 on:
   push:
     branches:
@@ -6,26 +7,22 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: gitea-runner
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
-
+      
       - name: Install kubectl
         uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
-
+      
       - name: Lint YAML files
         run: |
-          for file in $(find . -name "*.yaml" -o -name "*.yml"); do
-            echo "Linting $file..."
-            yamllint "$file" || exit 1
-          done
-
+          for file in $(find . -name "*.yml" -o -name "*.yaml"); do
+            yamllint $file
+          done          
+      
       - name: Apply Kubernetes manifests
         run: |
-          for file in $(find . -name "*.yaml" -o -name "*.yml"); do
-            echo "Applying $file..."
-            kubectl apply -f "$file"
-          done
+          for file in $(find . -name "*.yml" -o -name "*.yaml"); do
+            kubectl apply -f $file
+          done          
