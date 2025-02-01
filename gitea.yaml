@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitea-deployment
+  namespace: gitea
+  labels:
+    app: gitea
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitea
+  template:
+    metadata:
+      labels:
+        app: gitea
+    spec:
+      volumes:
+      - name: gitea-data
+        persistentVolumeClaim:
+          claimName: gitea-data-pvc
+      containers:
+      - name: gitea
+        image: gitea/gitea:latest
+        ports:
+        - containerPort: 3000 
+        volumeMounts:
+        - name: gitea-data
+          mountPath: /data
+          env:
+            env:
+      - name: GITEA__database__DB_TYPE
+        valueFrom:
+          secretKeyRef:
+            name: gitea-db-secret
+            key: DB_TYPE
+      - name: GITEA__database__HOST
+        valueFrom:
+          secretKeyRef:
+            name: gitea-db-secret
+            key: HOST
+      - name: GITEA__database__NAME
+        valueFrom:
+          secretKeyRef:
+            name: gitea-db-secret
+            key: NAME
+      - name: GITEA__database__USER
+        valueFrom:
+          secretKeyRef:
+            name: gitea-db-secret
+            key: USER
+      - name: GITEA__database__PASSWD
+        valueFrom:
+          secretKeyRef:
+            name: gitea-db-secret
+            key: PASSWD
+        livenessProbe:
+          httpGet:
+            path: /api/healthz
+            port: 3000  # Fix: Matches containerPort
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /api/healthz
+            port: 3000  # Fix: Matches containerPort
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitea-nodeport-service
+  namespace: gitea
+spec:
+  selector:
+    app: gitea
+  ports:
+  - protocol: TCP
+    port: 3000  # Fix: Changed to 3000 to match containerPort
+    targetPort: 3000  # Fix: Matches containerPort
+    nodePort: 30003
+  type: NodePort

@@ -1,0 +1,94 @@
+name: MySQL and pytest
+
+on: 
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches:
+      - main
+      - dev
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+      MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Start MySQL
+      run: |
+          docker run -d \
+            --name mysql-test \
+            --network host \
+            -e MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }} \
+            -e MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }} \
+            -p 3306:3306 \
+            mysql:8.0
+        
+    - name: Wait for MySQL to be ready
+      run: |
+          # Wait for MySQL to be ready
+          for i in {1..30}; do
+            if docker exec mysql-test mysqladmin ping -h $DB_HOST -u ${{ secrets.DB_USER }} -p${{ secrets.MYSQL_ROOT_PASSWORD }} --silent; then
+              echo "MySQL is ready"
+              break
+            fi
+            echo "Waiting for MySQL to be ready..."
+            sleep 1
+          done
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+          python-version: 3.9
+
+    - name: Install dependencies
+      run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+          
+    - name: Authenticate with Docker Hub
+      run: |
+        echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login --username ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+        if [ $? -eq 0 ]; then
+          echo "Successfully authenticated with Docker Hub"
+        else
+          echo "Authentication failed"
+          exit 1
+        fi
+
+
+    - name: Get unique image tag
+      id: vars
+      run: |
+          UNIQUE_TAG=$(git rev-parse --short HEAD)
+          echo "UNIQUE_TAG=${UNIQUE_TAG}" >> $GITHUB_ENV
+
+          
+    - name: Build Docker image
+      run: |
+        docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/flask-app:${{ env.UNIQUE_TAG }}  .
+        
+    - name: Push Docker image to Docker Hub
+      run: |
+        docker push ${{ secrets.DOCKERHUB_USERNAME }}/flask-app:${{ env.UNIQUE_TAG }}
+
+      
+    - name: Start Flask app in the background
+      run: |
+        docker run -d \
+          --name flask-container \
+          --network host \
+          -p 5000:5000 \
+          ${{ secrets.DOCKERHUB_USERNAME }}/flask-app:${{ env.UNIQUE_TAG }}
+
+    - name: Run tests
+      run: |
+          pytest tests/test_app.py

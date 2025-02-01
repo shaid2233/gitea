@@ -6,7 +6,7 @@ metadata:
   labels:
     app: gitea-runner
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: gitea-runner
@@ -15,29 +15,39 @@ spec:
       labels:
         app: gitea-runner
     spec:
+      serviceAccountName: my-service-account
       securityContext:
         fsGroup: 1000
       containers:
-      - name: gitea-runner
-        image: gitea/act_runner:latest
-        securityContext:
-          privileged: true  # Required for Docker-in-Docker
-        env:
-        - name: GITEA_INSTANCE_URL     
-          value: "http://gitea-service.gitea.svc.cluster.local:3000"
-        - name: GITEA_RUNNER_REGISTRATION_TOKEN
-          value: "os30pW4A2b4nwwAynRFrnjP9J7Q8CS0wqoKw6jIZ"  # Your new token
-        - name: GITEA_RUNNER_NAME
-          value: "gitea_runner"
-        volumeMounts:
-        - name: runner-home
-          mountPath: /data
-        - name: docker-sock
-          mountPath: /var/run/docker.sock
+        - name: gitea-runner
+          image: gitea/act_runner:latest
+          securityContext:
+            privileged: true
+          env:
+            - name: GITEA_INSTANCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-runner-secret
+                  key: INSTANCE_URL
+            - name: GITEA_RUNNER_REGISTRATION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-runner-secret
+                  key: REGISTRATION_TOKEN
+            - name: GITEA_RUNNER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-runner-secret
+                  key: RUNNER_NAME
+          volumeMounts:
+            - name: runner-home
+              mountPath: /data
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
       volumes:
-      - name: runner-home
-        emptyDir: {}
-      - name: docker-sock
-        hostPath:
-          path: /var/run/docker.sock
-          type: Socket
+        - name: runner-home
+          emptyDir: {}
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket

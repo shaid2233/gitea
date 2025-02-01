@@ -2,19 +2,16 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: gitea-ingress
-  namespace: gitea  # Ensure this matches the namespace of your service
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: "/"
+  namespace: gitea
 spec:
-  ingressClassName: nginx  # Specify the IngressClass explicitly if needed
   rules:
-  - host: gitea.local  # Replace with the hostname you want to use (make sure it's added to your hosts file)
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: gitea-service
-            port:
-              number: 3000  # Internal port of the service
+    - host: gitea.local
+      http:
+        paths:
+        - path: /
+          pathType: Prefix          kubectl logs -n kube-system -l k8s-app=kube-dns
+          backend:
+            service:
+              name: gitea-nodeport-service  # Fixed: Matches the actual Service name
+              port:
+                number: 3000  # Fixed: Matches the correct Service port

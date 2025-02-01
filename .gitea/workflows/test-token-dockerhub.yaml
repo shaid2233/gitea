@@ -1,0 +1,20 @@
+name: Docker Build and Push
+on:
+  push:
+    branches:
+      - main
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test Docker Hub Authentication
+        run: |
+          echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login --username ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+          if [ $? -eq 0 ]; then
+            echo "Successfully authenticated with Docker Hub"
+          else
+            echo "Authentication failed"
+            exit 1
+          fi     

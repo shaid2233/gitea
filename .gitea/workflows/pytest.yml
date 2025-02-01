@@ -1,0 +1,79 @@
+name: Run Pytest on Pull Requests
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronized]
+    branches:
+      - main
+      - dev
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Remove existing MySQL container if it exists
+      - name: Remove existing MySQL container
+        run: |
+          docker rm -f mysql-container || true
+
+      # Step 2: Create MySQL container
+      - name: Create MySQL container
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          docker run -d --name mysql-container \
+            -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
+            -e MYSQL_DATABASE=test \
+            -p 3306:3306 mysql:8
+      - name: Wait for MySQL
+        run: |
+          timeout 60s bash -c "until docker exec mysql-container mysqladmin ping -h localhost -u root -p${{secrets.DB_PASSWORD}} --silent; do sleep 2; done"
+
+      # Step 3: Check if the MySQL service is working
+      - name: Check if MySQL is working
+        run: |
+          docker ps
+
+      # Debugging step: Print environment variables to verify they're set
+      - name: Print environment variables
+        run: |
+          echo "DB_HOST: $DB_HOST"
+          echo "DB_PORT: $DB_PORT"
+          echo "DB_USER: $DB_USER"
+          echo "DB_PASSWORD: $DB_PASSWORD"
+
+      # Step 5: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Step 6: Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      # Step 7: Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step 8: Run Flask App
+      - name: Run Flask App
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_USERNAME: ${{ vars.DB_USER }}
+          DB_PORT: ${{ vars.DB_PORT }}
+          DB_HOST: ${{ vars.DB_HOST }}  # Use DB_HOST from environment variables
+        run: |
+          python main.py &
+
+      # Step 9: Run Pytest
+      - name: Run Pytest
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_USERNAME: ${{ vars.DB_USER }}
+          DB_PORT: ${{ vars.DB_PORT }}
+          DB_HOST: ${{ vars.DB_HOST }}  # Use DB_HOST from environment variables
+        run: |
+          pytest tests/test_app.py

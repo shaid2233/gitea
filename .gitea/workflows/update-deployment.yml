@@ -1,0 +1,82 @@
+name: github_output_example
+on:
+  push:
+jobs:
+  job1:
+    runs-on: ubuntu-latest
+    outputs:
+      UNIQUE_TAG: ${{ steps.generate_tag.outputs.UNIQUE_TAG }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Generate unique tag
+        id: generate_tag
+        run: |
+          UNIQUE_TAG=$(git rev-parse --short HEAD)
+          echo "UNIQUE_TAG=${UNIQUE_TAG}" >> $GITHUB_OUTPUT
+
+  build:  # Removed nested 'job2' structure
+    runs-on: ubuntu-latest
+    needs: job1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Authenticate with Docker Hub
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          echo "${DOCKERHUB_TOKEN}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
+          if [ $? -eq 0 ]; then
+            echo "Successfully authenticated with Docker Hub"
+          else
+            echo "Authentication failed"
+            exit 1
+          fi
+          
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/python-app:${{ needs.job1.outputs.UNIQUE_TAG }} .
+          
+      - name: Push Docker image to Docker Hub
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/python-app:${{ needs.job1.outputs.UNIQUE_TAG }}
+          
+      - name: Logout from Docker Hub
+        run: docker logout
+
+  deploy:  # Renamed job3 to be more descriptive
+    needs: [job1, build]  # Added dependency on build job
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Kubernetes manifest repo
+        uses: actions/checkout@v3
+        with:
+          repository: shaid/kubernetes_manifests  # Make sure this is your correct repo
+          token: ${{ secrets.PAT_TOKEN }}  # Changed to PAT_TOKEN for repository access
+          ref: main
+          
+      - name: Setup yq
+        uses: dcarbone/install-yq-action@v1.3.0
+        
+      - name: Verify yq Installation
+        run: |
+          yq --version
+          echo "yq is ready to use!"
+          
+      - name: Modify deployment tag
+        env:
+          UNIQUE_TAG: ${{ needs.job1.outputs.UNIQUE_TAG }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}  # Added for image name
+        run: |
+          echo "Updating deployment.yaml with tag: $UNIQUE_TAG"
+          yq e ".spec.template.spec.containers[0].image = \"${DOCKERHUB_USERNAME}/python-app:${UNIQUE_TAG}\"" -i deployment.yaml
+          
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git add deployment.yaml
+          git commit -m "Update deployment image to ${UNIQUE_TAG}"
+          git push
