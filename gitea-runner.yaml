@@ -15,7 +15,6 @@ spec:
       labels:
         app: gitea-runner
     spec:
-      serviceAccountName: my-service-account
       securityContext:
         fsGroup: 1000
       containers:
