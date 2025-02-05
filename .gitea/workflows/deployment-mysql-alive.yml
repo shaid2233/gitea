@@ -1,0 +1,104 @@
+name: update deployment my-sql-alive
+
+on:
+  push:
+    branches:
+      - dev
+      - main 
+
+jobs:
+  job1:
+    runs-on: ubuntu-latest
+    outputs:
+      UNIQUE_TAG: ${{ steps.generate_tag.outputs.UNIQUE_TAG }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Generate unique tag
+        id: generate_tag
+        run: |
+          UNIQUE_TAG=$(git rev-parse --short HEAD)
+          echo "UNIQUE_TAG=${UNIQUE_TAG}" >> $GITHUB_OUTPUT
+
+
+  job2:
+    runs-on: ubuntu-latest
+    needs: job1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        
+      - name: Use tag from job1
+        run: |
+          echo "Using tag: ${{ needs.job1.outputs.UNIQUE_TAG }}"
+        # Step 2: Authenticate with Docker Hub
+      - name: Authenticate with Docker Hub
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          echo "${DOCKERHUB_TOKEN}" | docker login --username "${DOCKERHUB_USERNAME}" --password-stdin
+          if [ $? -eq 0 ]; then
+            echo "Successfully authenticated with Docker Hub"
+          else
+            echo "Authentication failed"
+            exit 1
+          fi            
+
+      # Step 3: Build the Docker image
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/mysql-alive:${{ needs.job1.outputs.UNIQUE_TAG }} .
+
+      # Step 4: Push the Docker image to Docker Hub
+      - name: Push Docker image to Docker Hub
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/mysql-alive:${{ needs.job1.outputs.UNIQUE_TAG }}          
+
+      # Step 5: Logout from Docker Hub (optional cleanup)
+      - name: Logout from Docker Hub
+        run: |
+          docker logout   
+
+
+  job3:
+    needs: job2 
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Kubernetes manifest repo
+        uses: actions/checkout@v4
+        with:
+          repository: shaid2233/k8s-mysql-alive
+          token: ${{ secrets.OTHER_REPO_PAT }} 
+          ref: ${{ github.ref_name }} 
+          
+
+      - name: Setup yq
+        uses: dcarbone/install-yq-action@v1.3.0
+
+
+      - name: Modify deployment tag
+        env:
+          UNIQUE_TAG: ${{ needs.job1.outputs.UNIQUE_TAG }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          echo "Updating deployment.yaml with tag: $UNIQUE_TAG"
+          yq e ".spec.template.spec.containers[0].image = \"$DOCKERHUB_USERNAME/mysql-alive:$UNIQUE_TAG\"" -i deployment.yaml
+
+
+
+      - name: Set up Git configuration
+        run: |
+          git config --global user.name "shaid2233"  # Your GitHub username
+          git config --global user.email "shaidaniel27@gmail.com"  # Your GitHub email
+
+
+      - name: Commit and push changes
+        run: |
+          git status
+          git add . 
+          git commit -m "Update MySQL image tag to mysql-alive:$UNIQUE_TAG"
+          git push  # Push to the existing branch 'feat-br'
+        env:
+          GITHUB_TOKEN: ${{ secrets.OTHER_REPO_PAT }}  # GitHub automatically provides this
