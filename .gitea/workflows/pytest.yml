@@ -1,8 +1,8 @@
-name: Run Pytest on Pull Requests
+name: MySQL and pytest
 
-on:
+on: 
   pull_request:
-    types: [opened, reopened, synchronized]
+    types: [opened, reopened, synchronize]
     branches:
       - main
       - dev
@@ -10,70 +10,64 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+      MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
+
     steps:
-      # Step 1: Remove existing MySQL container if it exists
-      - name: Remove existing MySQL container
-        run: |
-          docker rm -f mysql-container || true
+    
+      - uses: actions/checkout@v3
 
-      # Step 2: Create MySQL container
-      - name: Create MySQL container
-        env:
-          MYSQL_ROOT_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        run: |
-          docker run -d --name mysql-container \
-            -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \
-            -e MYSQL_DATABASE=test \
-            -p 3306:3306 mysql:8
-      - name: Wait for MySQL
-        run: |
-          timeout 60s bash -c "until docker exec mysql-container mysqladmin ping -h localhost -u root -p${{secrets.DB_PASSWORD}} --silent; do sleep 2; done"
 
-      # Step 3: Check if the MySQL service is working
-      - name: Check if MySQL is working
+      - name: Start MySQL
         run: |
-          docker ps
-
-      # Debugging step: Print environment variables to verify they're set
-      - name: Print environment variables
+          docker run -d \
+            --name mysql-test \
+            --network host \
+            -e MYSQL_ROOT_PASSWORD=$DB_PASSWORD \
+            -e MYSQL_DATABASE=$MYSQL_DATABASE \
+            -p 3306:3306 \
+            mysql:8.0
+        
+      - name: Wait for MySQL to be ready
         run: |
-          echo "DB_HOST: $DB_HOST"
-          echo "DB_PORT: $DB_PORT"
-          echo "DB_USER: $DB_USER"
-          echo "DB_PASSWORD: $DB_PASSWORD"
+          # Wait for MySQL to be ready
+          for i in {1..30}; do
+            if docker exec mysql-test mysqladmin ping -h $DB_HOST -u $DB_USER -p$DB_PASSWORD --silent; then
+              echo "MySQL is ready"
+              break
+            fi
+            echo "Waiting for MySQL to be ready..."
+            sleep 1
+          done
 
-      # Step 5: Checkout the repository
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      # Step 6: Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: 3.9
 
-      # Step 7: Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Step 8: Run Flask App
-      - name: Run Flask App
-        env:
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_USERNAME: ${{ vars.DB_USER }}
-          DB_PORT: ${{ vars.DB_PORT }}
-          DB_HOST: ${{ vars.DB_HOST }}  # Use DB_HOST from environment variables
+      - name: Build Docker image
         run: |
-          python main.py &
+          docker builder prune -f
+          docker build --no-cache -t flask-app .
 
-      # Step 9: Run Pytest
-      - name: Run Pytest
-        env:
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_USERNAME: ${{ vars.DB_USER }}
-          DB_PORT: ${{ vars.DB_PORT }}
-          DB_HOST: ${{ vars.DB_HOST }}  # Use DB_HOST from environment variables
+      - name: Build Docker image
+        run: |
+          docker build -t flask-app .
+      
+      - name: Start Flask app in the background
+        run: |
+          docker run -d --network host -p 5000:5000 --name flask-container flask-app
+
+      - name: Run tests
         run: |
           pytest tests/test_app.py
