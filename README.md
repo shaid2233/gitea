@@ -1,6 +1,4 @@
-Below is a unified `README.md` that includes **all** the sections—including the one on enhancing the Gitea deployment with liveness/readiness probes, resource limits, and the CI/CD pipeline on the feat-branch—as requested. If it appeared that any part was omitted before, it was not intentional. This version now incorporates everything together:
 
----
 
 ```markdown
 # Comprehensive CI/CD & Deployment Automation
