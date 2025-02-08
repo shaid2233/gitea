@@ -141,10 +141,10 @@ This project covers multiple integration points and workflows:
     name: mysecret
   type: Opaque
   data:
-    MYSQL_ROOT_PASSWORD: cm9vdHBhc3N3b3Jk   # "rootpassword" (Base64 encoded)
-    MYSQL_DATABASE: Z2l0ZWE=                # "gitea" (Base64 encoded)
-    MYSQL_USER: Z2l0ZWF1c2Vy                # "giteauser" (Base64 encoded)
-    MYSQL_PASSWORD: Z2l0ZWFwYXNzd29yZA==    # "giteapassword" (Base64 encoded)
+    MYSQL_ROOT_PASSWORD: ##########   # "rootpassword" (Base64 encoded)
+    MYSQL_DATABASE: ##########                # "gitea" (Base64 encoded)
+    MYSQL_USER: ##########               # "giteauser" (Base64 encoded)
+    MYSQL_PASSWORD: ##########    # "giteapassword" (Base64 encoded)
   ```
   Apply with:
   ```bash
@@ -311,40 +311,54 @@ It returns HTTP 200 if all checks pass; otherwise, it returns HTTP 500.
 #### Running MySQL in a Docker Container
 
 ```bash
-docker run -d \
-  --name mysql-test \
-  -e MYSQL_ROOT_PASSWORD=123456 \
-  -e MYSQL_DATABASE=testdb \
-  -p 3306:3306 \
-  mysql:8.0
+      - name: Start MySQL
+        run: |
+          docker run -d \
+            --name mysql-test \
+            --network host \
+            -e MYSQL_ROOT_PASSWORD=$DB_PASSWORD \
+            -e MYSQL_DATABASE=$MYSQL_DATABASE \
+            -p 3306:3306 \
+            mysql:8.0
 ```
 
 #### Dockerfile for the Flask App
 
 ```dockerfile
-# Use an official Python base image
+# Step 1: Use an official Python base image
 FROM python:3.9-slim
 
-# Set the working directory
+# Step 2: Set the working directory inside the container
 WORKDIR /usr/src/app
 
-# Copy requirements and install dependencies
+# Step 3: Copy requirements file to the working directory
 COPY requirements.txt ./
+
+# Step 4: Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
+# Step 5: Copy the rest of the application source code to the working directory
 COPY . .
 
-# Set environment variables (override at runtime for sensitive data)
-ENV DB_HOST=localhost
-ENV DB_PORT=3306
-ENV DB_USER=root
-ENV DB_PASSWORD=123456
 
-# Expose port 5000 for the Flask app
+ARG DB_HOST
+ARG DB_PORT
+ARG DB_USER
+ARG DB_PASSWORD
+
+
+# Step 6: Set environment variables
+ENV DB_HOST=$DB_HOST
+ENV DB_PORT=$DB_PORT
+ENV DB_USER=$DB_USER
+ENV DB_PASSWORD=$DB_PASSWORD
+
+
+
+# Step 6: Expose the port the app will run on
 EXPOSE 5000
 
-# Run the application
+# Step 7: Define the command to run the application
 CMD ["python", "main.py"]
 ```
 
@@ -655,32 +669,6 @@ jobs:
       - name: Quick Verification
         run: echo "Pipeline is optimized and running!"
 ```
-
-#### Resolving Connectivity Issues: Node IP vs. Service FQDN
-
-- **Initial Approach (Service FQDN):**  
-  Attempted to use:
-  ```
-  http://gitea-nodeport-service.gitea.svc.cluster.local:3000
-  ```
-  but encountered DNS resolution issues.
-
-- **Solution: Using the Node IP:**  
-  Switched to:
-  ```
-  http://192.168.65.3:30003
-  ```
-  which bypassed DNS resolution and provided direct access to the service.
-
-**Why the Node IP Works Better:**
-
-- **Direct Access:**  
-  It provides a direct route to the service, eliminating the dependency on Kubernetes DNS resolution.
-- **Bypassing DNS Issues:**  
-  Avoids potential misconfigurations or network policies blocking DNS traffic.
-- **Reliability:**  
-  Offers a simpler and more reliable method for testing and debugging.
-
 ---
 
 ## Environment Variables and Secrets
