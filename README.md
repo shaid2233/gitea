@@ -401,7 +401,7 @@ metadata:
   labels:
     app: gitea-runner
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: gitea-runner
@@ -410,29 +410,33 @@ spec:
       labels:
         app: gitea-runner
     spec:
+      securityContext:
+        fsGroup: 1000
       containers:
-      - name: gitea-runner
-        image: gitea/act_runner:latest
-        securityContext:
-          privileged: true
-        env:
-        - name: GITEA_INSTANCE_URL
-          value: "http://<your-gitea-server-url>"  # Replace with your actual Gitea URL
-        - name: GITEA_RUNNER_REGISTRATION_TOKEN
-          value: "#################"  # Replace with your runner token
-        - name: GITEA_RUNNER_NAME
-          value: "gitea-runner-1"
-        volumeMounts:
-        - name: docker-socket
-          mountPath: /var/run/docker.sock
-        - name: runner-home
-          mountPath: /data
+        - name: gitea-runner
+          image: gitea/act_runner:latest
+          securityContext:
+            privileged: true
+          env:
+            - name: GITEA_INSTANCE_URL
+              value: "http://<your-gitea-server-url>"  # Replace with your actual Gitea URL
+            - name: GITEA_RUNNER_REGISTRATION_TOKEN
+              value: "#################"  # Replace with your runner token
+            - name: GITEA_RUNNER_NAME
+              value: "gitea-runner"
+          volumeMounts:
+            - name: runner-home
+              mountPath: /data
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
       volumes:
-      - name: docker-socket
-        hostPath:
-          path: /var/run/docker.sock
-      - name: runner-home
-        emptyDir: {}
+        - name: runner-home
+          emptyDir: {}
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
+
 ```
 
 Deploy the runner:
