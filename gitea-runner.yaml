@@ -24,20 +24,11 @@ spec:
             privileged: true
           env:
             - name: GITEA_INSTANCE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: gitea-runner-secret
-                  key: INSTANCE_URL
+              value: "http://<your-gitea-server-url>"  # Replace with your actual Gitea URL
             - name: GITEA_RUNNER_REGISTRATION_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: gitea-runner-secret
-                  key: REGISTRATION_TOKEN
+              value: "#################"  # Replace with your runner token
             - name: GITEA_RUNNER_NAME
-              valueFrom:
-                secretKeyRef:
-                  name: gitea-runner-secret
-                  key: RUNNER_NAME
+              value: "gitea-runner"
           volumeMounts:
             - name: runner-home
               mountPath: /data
