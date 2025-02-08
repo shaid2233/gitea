@@ -416,10 +416,10 @@ metadata:
   namespace: db  # Ensure this is the correct namespace for MySQL
 type: Opaque
 data:
-  MYSQL_ROOT_PASSWORD: cm9vdHBhc3N3b3Jk   # "rootpassword" (Base64 encoded)
-  MYSQL_DATABASE: Z2l0ZWE=                # "gitea" (Base64 encoded)
-  MYSQL_USER: Z2l0ZWF1c2Vy                # "giteauser" (Base64 encoded)
-  MYSQL_PASSWORD: Z2l0ZWFwYXNzd29yZA==    # "giteapassword" (Base64 encoded)
+  MYSQL_ROOT_PASSWORD: ############   # "rootpassword" (Base64 encoded)
+  MYSQL_DATABASE: ############                 # "gitea" (Base64 encoded)
+  MYSQL_USER: ############               # "giteauser" (Base64 encoded)
+  MYSQL_PASSWORD: ############     # "giteapassword" (Base64 encoded)
 ```
 
 #### B. Gitea Database Secret
@@ -432,11 +432,11 @@ metadata:
   namespace: gitea  # Ensure this matches your Gitea deployment namespace
 type: Opaque
 stringData:
-  DB_TYPE: mysql
-  HOST: mysql.db.svc.cluster.local:3306
-  NAME: giteadb
-  USER: gitea
-  PASSWD: giteapass
+  DB_TYPE:############ 
+  HOST: ############ 
+  NAME: ############ 
+  USER: ############ 
+  PASSWD: ############ 
 ```
 
 **Apply the Secrets:**
@@ -702,12 +702,11 @@ A Flask-based microservice exposes an endpoint to check MySQL database connectiv
 Set the following in your environment or a `.env` file:
 
 ```
-DB_HOST=localhost      # MySQL host address
-DB_PORT=3306           # MySQL port
-DB_USER=root           # MySQL user
-DB_PASSWORD=123456     # MySQL password
-DB_NAME=testdb         # Database name
-SERVER_HOST=localhost  # Flask server host
+DB_HOST=############      # MySQL host address
+DB_PORT=############           # MySQL port
+DB_USER=############           # MySQL user
+DB_PASSWORD=############ ****     # MySQL password
+DB_NAME=############         # Database name 
 SERVER_PORT=5000       # Flask server port
 ```
 
