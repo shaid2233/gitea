@@ -14,12 +14,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 
+ARG DB_HOST
+ARG DB_PORT
+ARG DB_USER
+ARG DB_PASSWORD
+
 
 # Step 6: Set environment variables
-ENV DB_HOST=localhost
-ENV DB_PORT=3306
-ENV DB_USER=root
-ENV DB_PASSWORD=123456
+ENV DB_HOST=$DB_HOST
+ENV DB_PORT=$DB_PORT
+ENV DB_USER=$DB_USER
+ENV DB_PASSWORD=$DB_PASSWORD
 
 
 
