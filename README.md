@@ -419,7 +419,7 @@ spec:
         - name: GITEA_INSTANCE_URL
           value: "http://<your-gitea-server-url>"  # Replace with your actual Gitea URL
         - name: GITEA_RUNNER_REGISTRATION_TOKEN
-          value: "os30pW4A2b4nwwAynRFrnjP9J7Q8CS0wqoKw6jIZ"  # Replace with your runner token
+          value: "#################"  # Replace with your runner token
         - name: GITEA_RUNNER_NAME
           value: "gitea-runner-1"
         volumeMounts:
