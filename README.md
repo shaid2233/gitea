@@ -1,3 +1,39 @@
+## Table of Contents
+
+- [Part I – Gitea Deployment & Runner](#part-i--gitea-deployment--runner)
+  - [1. Persistent Storage Setup](#1-persistent-storage-setup)
+    - [A. Gitea Storage](#a-gitea-storage)
+    - [B. MySQL Storage](#b-mysql-storage)
+  - [2. Deploying Gitea & MySQL](#2-deploying-gitea--mysql)
+    - [A. Gitea Namespace & Deployment](#a-gitea-namespace--deployment)
+    - [B. Gitea Service](#b-gitea-service)
+    - [C. MySQL StatefulSet & Service](#c-mysql-statefulset--service)
+  - [3. Secrets Management](#3-secrets-management)
+    - [A. MySQL Secret](#a-mysql-secret)
+    - [B. Gitea Database Secret](#b-gitea-database-secret)
+  - [4. Ingress Installation & Local DNS Configuration](#4-ingress-installation--local-dns-configuration)
+    - [A. Installing the NGINX Ingress Controller](#a-installing-the-nginx-ingress-controller)
+    - [B. Gitea Ingress Configuration](#b-gitea-ingress-configuration)
+    - [C. Local DNS Configuration](#c-local-dns-configuration)
+  - [5. Monitoring & Resource Management](#5-monitoring--resource-management)
+    - [A. Health Probes](#a-health-probes)
+    - [B. Resource Requests and Limits](#b-resource-requests-and-limits)
+    - [C. Metrics Server Installation](#c-metrics-server-installation)
+  - [6. Setting Up a Gitea Runner](#6-setting-up-a-gitea-runner)
+- [Part II – Database Health Check Service & CI/CD Workflows](#part-ii--database-health-check-service--cicd-workflows)
+  - [1. Database Health Check Service](#1-database-health-check-service)
+    - [Features](#features)
+    - [Prerequisites](#prerequisites)
+    - [Environment Variables](#environment-variables)
+    - [Installation & Running](#installation--running)
+    - [API Endpoint](#api-endpoint)
+    - [Running Tests](#running-tests)
+  - [2. GitHub Actions Workflows](#2-github-actions-workflows)
+    - [Docker Build and Push Workflow](#docker-build-and-push-workflow)
+    - [Dockerfile for the Flask App](#dockerfile-for-the-flask-app)
+    - [MySQL and Pytest Workflow](#mysql-and-pytest-workflow)
+    - [Deployment Manifest Update Workflow](#deployment-manifest-update-workflow)
+- [Troubleshooting & Tips](#troubleshooting--tips)
 
 
 ---
@@ -632,7 +668,7 @@ kubectl get pods -n gitea-runner
 
 ## Part II – Database Health Check Service & CI/CD Workflows
 
-This section documents a Flask microservice for checking MySQL connectivity and describes the GitHub Actions workflows used for building Docker images, running tests, and updating Kubernetes manifests.
+This section documents a Flask microservice for checking MySQL connectivity and describes the GitHub Actions workflows used for building Docker images, running tests, and updating Kubernetes manifest.
 
 ### 1. Database Health Check Service
 
@@ -691,8 +727,8 @@ The service will run at `http://localhost:5000`.
 
 **GET /is-db-alive**
 
-- **200 OK:** Database connection successful.
-- **500 Internal Server Error:** Database connection failed.
+- **200 OK:** DB is alive.
+- **500 Internal Server Error:** DB connection failed.
 
 #### Running Tests
 
@@ -748,6 +784,47 @@ jobs:
       - name: Logout from Docker Hub
         run: docker logout
 ```
+
+#### Dockerfile for the Flask App
+
+```dockerfile
+# Step 1: Use an official Python base image
+FROM python:3.9-slim
+
+# Step 2: Set the working directory inside the container
+WORKDIR /usr/src/app
+
+# Step 3: Copy requirements file to the working directory
+COPY requirements.txt ./
+
+# Step 4: Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Step 5: Copy the rest of the application source code to the working directory
+COPY . .
+
+
+ARG DB_HOST
+ARG DB_PORT
+ARG DB_USER
+ARG DB_PASSWORD
+
+
+# Step 6: Set environment variables
+ENV DB_HOST=$DB_HOST
+ENV DB_PORT=$DB_PORT
+ENV DB_USER=$DB_USER
+ENV DB_PASSWORD=$DB_PASSWORD
+
+
+
+# Step 6: Expose the port the app will run on
+EXPOSE 5000
+
+# Step 7: Define the command to run the application
+CMD ["python", "main.py"]
+```
+
 
 #### MySQL and Pytest Workflow
 
@@ -896,6 +973,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.OTHER_REPO_PAT }}
 ```
+## Troubleshooting & Tips
+
+- **Networking Issues:**  
+  If containers cannot communicate, verify they are on the same Docker network or use host networking for local testing.
+
+- **Persistent Data:**  
+  Ensure your PersistentVolumeClaims are correctly bound and that storage is available for MySQL.
+
+- **Docker Build Errors:**  
+  Confirm that the `Dockerfile` is in the repository root and that all necessary files are present.
+
+- **CI/CD Connectivity:**  
+  Ensure repository checkouts (using `actions/checkout@v3` or `v4`) and environment variables are correctly configured.
+
+- **Secret Management:**  
+  Always use environment variables and repository secrets for sensitive credentials rather than hardcoding them.
+
 
 ---
 ```
