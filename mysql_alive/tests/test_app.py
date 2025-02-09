@@ -7,10 +7,10 @@ from mysql.connector import Error
 
 # Function to check if MySQL is accessible
 def is_mysql_alive():
-    db_host = os.getenv('DB_HOST', 'localhost')
-    db_port = os.getenv('DB_PORT', '3306')
-    db_user = os.getenv('DB_USER', 'root')  # Get user from environment variable
-    db_password = os.getenv('DB_PASSWORD', '123456')  # Get password from environment variable
+    db_host = os.getenv('DB_HOST', '#####')
+    db_port = os.getenv('DB_PORT', '#####')
+    db_user = os.getenv('DB_USER', '####')  # Get user from environment variable
+    db_password = os.getenv('DB_PASSWORD', '######')  # Get password from environment variable
 
     try:
         # Try connecting to MySQL database
