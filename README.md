@@ -754,7 +754,6 @@ on:
   push:
     branches:
       - main
-      - master
 jobs:
   build:
     runs-on: ubuntu-latest
