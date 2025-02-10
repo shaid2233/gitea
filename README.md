@@ -991,6 +991,3 @@ jobs:
 
 
 ---
-```
-
-You can now copy the above content and paste it into your `README.md` file.
